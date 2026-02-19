@@ -61,8 +61,44 @@ def load_environment() -> bool:
 load_environment()
 
 PROMPT_CACHE_SHARDS = int(os.getenv("PROMPT_CACHE_SHARDS", "1"))
-PROMPT_CACHE_RETENTION = os.getenv("PROMPT_CACHE_RETENTION", "24h")
+PROMPT_CACHE_RETENTION_RAW = os.getenv("PROMPT_CACHE_RETENTION", "0")
 PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1")
+
+
+def _parse_duration_to_seconds(value: str) -> int:
+    """Parse a simple duration string into seconds.
+
+    Supported formats:
+    - Integer seconds: "0", "300", "86400"
+    - Suffixed: "30s", "15m", "24h", "7d"
+
+    Returns 0 for empty/invalid inputs.
+    """
+    raw = (value or "").strip().lower()
+    if not raw:
+        return 0
+
+    # Plain integer seconds
+    if raw.isdigit():
+        try:
+            return max(0, int(raw))
+        except Exception:
+            return 0
+
+    units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    unit = raw[-1]
+    num = raw[:-1]
+    if unit in units and num.replace(".", "", 1).isdigit():
+        try:
+            seconds = float(num) * units[unit]
+            return max(0, int(seconds))
+        except Exception:
+            return 0
+
+    return 0
+
+
+PROMPT_CACHE_RETENTION_SECONDS = _parse_duration_to_seconds(PROMPT_CACHE_RETENTION_RAW)
 
 
 def _stable_json_dumps(payload: Dict[str, Any]) -> str:
@@ -123,7 +159,7 @@ def invoke_llm(
         HumanMessage(content=f"the passage is:\n{passage}"),
     ]
 
-    retention = PROMPT_CACHE_RETENTION if prompt_cache_retention is None else prompt_cache_retention
+    retention = PROMPT_CACHE_RETENTION_SECONDS if prompt_cache_retention is None else prompt_cache_retention
     shard = 0
     if PROMPT_CACHE_SHARDS > 1:
         shard = _crc32_u32(runtime_json) % PROMPT_CACHE_SHARDS
@@ -143,7 +179,7 @@ def invoke_llm(
         "max_retries": 2,
     }
 
-    if retention:
+    if retention and retention > 0:
         llm_kwargs["prompt_cache_retention"] = retention
 
     if chosen_model in ["gpt-5", "gpt-5-1"]:
@@ -151,7 +187,7 @@ def invoke_llm(
 
     model = ChatOpenAI(**llm_kwargs)
 
-    if retention:
+    if retention and retention > 0:
         response = model.invoke(
             messages,
             prompt_cache_key=prompt_cache_key,

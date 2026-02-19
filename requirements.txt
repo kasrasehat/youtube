@@ -1,0 +1,6 @@
+pytubefix>=6.0.0
+youtube-transcript-api>=0.6.1
+openai>=1.109.1,<3.0.0
+langchain-openai==0.3.35
+langchain-core==0.3.83
+

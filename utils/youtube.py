@@ -47,6 +47,12 @@ def download_video(url: str, output_dir: Path) -> tuple[Path, str]:
 def fetch_transcript_text(url: str) -> str:
     """Retrieve the transcript text for a YouTube video."""
     video_id = extract_video_id(url)
-    entries = YouTubeTranscriptApi().fetch(video_id)
-    return " ".join(entry.text.strip() for entry in entries if entry.text)
+    # The library has had multiple API shapes across versions. Support both.
+    if hasattr(YouTubeTranscriptApi, "get_transcript"):
+        entries = YouTubeTranscriptApi.get_transcript(video_id)  # type: ignore[attr-defined]
+        return " ".join(entry.get("text", "").strip() for entry in entries if entry.get("text"))
+
+    # Fallback: newer/alternate API that returns objects with `.text`
+    entries = YouTubeTranscriptApi().fetch(video_id)  # type: ignore[call-arg,attr-defined]
+    return " ".join(getattr(entry, "text", "").strip() for entry in entries if getattr(entry, "text", None))
 
