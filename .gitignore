@@ -1,3 +1,26 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.env.*
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data outputs (avoid large files)
+data/
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.json
+*.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
